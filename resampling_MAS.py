@@ -312,7 +312,7 @@ def _save_resampling_plots(result, N_pix, x_range, y_range, R_sun_m, verbose):
     plt.close()
 
     z_mid_idx = min(2, Ne_LOS.shape[2] - 1)
-    z_mid_idx = 5
+    z_mid_idx = 1
     fig2, axes2 = plt.subplots(1, 3, figsize=(18, 5))
     im1 = axes2[0].imshow(np.log10(Ne_LOS[:, :, z_mid_idx]) , origin='lower',
                           extent=[x_range[0], x_range[1], y_range[0], y_range[1]],
@@ -324,19 +324,19 @@ def _save_resampling_plots(result, N_pix, x_range, y_range, R_sun_m, verbose):
 
     im2 = axes2[1].imshow(np.log10(Te_LOS[:, :, z_mid_idx]), origin='lower',
                          extent=[x_range[0], x_range[1], y_range[0], y_range[1]],
-                         aspect='equal', cmap='plasma',vmax=5)
+                         aspect='equal', cmap='plasma',vmax=5.5)
     axes2[1].set_xlabel('x (R_sun)')
     axes2[1].set_ylabel('y (R_sun)')
     axes2[1].set_title(f'T_e at z={z_coords[z_mid_idx]/R_sun_m:.2f} R_sun')
-    plt.colorbar(im2, ax=axes2[1], label='T_e (K)')
+    plt.colorbar(im2, ax=axes2[1], label='T_e (K) [log10]')
 
-    im3 = axes2[2].imshow(B_LOS[:, :, z_mid_idx], origin='lower',
+    im3 = axes2[2].imshow(np.log10(B_LOS[:, :, z_mid_idx]), origin='lower',
                          extent=[x_range[0], x_range[1], y_range[0], y_range[1]],
                          aspect='equal', cmap='hot')
     axes2[2].set_xlabel('x (R_sun)')
     axes2[2].set_ylabel('y (R_sun)')
     axes2[2].set_title(f'|B| at z={z_coords[z_mid_idx]/R_sun_m:.2f} R_sun')
-    plt.colorbar(im3, ax=axes2[2], label='|B| (G)')
+    plt.colorbar(im3, ax=axes2[2], label='|B| (G) [log10]')
     plt.tight_layout()
     plt.savefig('LOS_2D_slices.png', dpi=150, bbox_inches='tight')
     plt.close()
