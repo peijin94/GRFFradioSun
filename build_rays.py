@@ -23,6 +23,10 @@ from psipy.io.mas import _read_mas
 import xarray as xr
 from psipy.model.variable import Variable
 
+
+from numpy.linalg import norm
+from numpy import cross
+
 warnings.filterwarnings('ignore')
 
 R_SUN_M = 6.957e8
@@ -123,7 +127,8 @@ def resample_to_xyz_cube(model, var_name, x_grid, y_grid, z_grid, phi0_offset=0.
 
 
 def ray_trace(omega_pe_3d, x_grid, y_grid, z_grid, freq_hz, x_start, y_start, z_start,
-              kvec_in_norm, dt, n_steps, record_stride):
+              kvec_in_norm, dt, n_steps, record_stride=10, trace_crosssections=False, cross_section_stride=1,
+              perturb_ratio=2):
     """Run simple ray tracing as in ray_tracing_demo.ipynb."""
     dx_g = x_grid[1] - x_grid[0]
     dy_g = y_grid[1] - y_grid[0]
@@ -149,7 +154,8 @@ def ray_trace(omega_pe_3d, x_grid, y_grid, z_grid, freq_hz, x_start, y_start, z_
     kc_cur = np.sqrt(np.sum(k_vec**2, axis=1))
 
     r_record = []
-
+    crosssection_record = []
+    
     def rhs(state):
         r_vec = state[:, 0:3]
         k_vec = state[:, 3:6]
@@ -178,15 +184,69 @@ def ray_trace(omega_pe_3d, x_grid, y_grid, z_grid, freq_hz, x_start, y_start, z_
 
     state = np.hstack([r_vec, k_vec])
 
+    crosssection0 = 0
+
+    def make_e1e2_from_t(t_hat):
+        # t_hat: (N,3) unit vectors
+        # pick reference axis least aligned with t_hat for numerical stability
+        a = np.zeros_like(t_hat)
+        use_z = np.abs(t_hat[:, 2]) < 0.9
+        a[use_z] = np.array([0.0, 0.0, 1.0])
+        a[~use_z] = np.array([0.0, 1.0, 0.0])
+
+        e1 = np.cross(a, t_hat)
+        e1 /= np.linalg.norm(e1, axis=1, keepdims=True) + 1e-30
+        e2 = np.cross(t_hat, e1)
+        # e2 is already unit if t_hat and e1 are unit+orthogonal; normalize anyway:
+        e2 /= np.linalg.norm(e2, axis=1, keepdims=True) + 1e-30
+        return e1, e2
+
+
     for i in range(n_steps):
+
+        state0= state.copy()
+        state = rk4_step(state, dt)
+
+        if trace_crosssections:
+
+            r0 = state0[:, 0:3]
+            k0 = state0[:, 3:6]
+            r_new = state[:, 0:3]
+            r_diff = r_new - r0
+
+            # direction for basis (use r_diff from the central step)
+            t_hat = r_diff / (norm(r_diff, axis=1, keepdims=True) + 1e-30)
+            e1, e2 = make_e1e2_from_t(t_hat)
+
+            eps = perturb_ratio * norm(r_diff, axis=1)  # (n_rays,)
+
+            # two perturbed rays at the same starting "origin"
+            r1 = r0 + eps[:, np.newaxis] * e1
+            r2 = r0 + eps[:, np.newaxis] * e2
+
+            state1_0 = np.hstack([r1, k0])
+            state2_0 = np.hstack([r2, k0])
+
+            state1_1 = rk4_step(state1_0, dt)
+            state2_1 = rk4_step(state2_0, dt)
+
+            r1_1 = state1_1[:, 0:3]
+            r2_1 = state2_1[:, 0:3]
+            r0_1 = state[:, 0:3]   # central already advanced
+
+            d1 = r1_1 - r0_1
+            d2 = r2_1 - r0_1
+            # row-wise dot: cross(d1,d2) and t_hat are (n_rays, 3) -> (n_rays,)
+            S_ratio = np.abs(np.sum(cross(d1, d2) * t_hat, axis=1)) / eps**2
+
         if i % record_stride == 0:
             r_record.append(state[:, 0:3].copy())
-
-        state = rk4_step(state, dt)
+            if trace_crosssections:
+                crosssection_record.append(S_ratio.copy())
 
     r_vec = state[:, 0:3]
 
-    return np.array(r_record)
+    return np.array(r_record), crosssection_record
 
 
 def plot_rays(omega_pe_3d, x_grid, y_grid, z_grid, r_record, out_path, y_index=None):
@@ -300,7 +360,7 @@ def main():
     y_start = np.zeros_like(z_start) + args.start_y
     kvec_in_norm = np.tile(np.array([[-1, 0, 0]]), (len(z_start), 1))
 
-    r_record = ray_trace(
+    r_record, _ = ray_trace(
         omega_pe_3d=omega_pe_3d,
         x_grid=x_grid,
         y_grid=y_grid,
