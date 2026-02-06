@@ -215,7 +215,7 @@ def ray_trace(omega_pe_3d, x_grid, y_grid, z_grid, freq_hz, x_start, y_start, z_
             r_diff = r_new - r0
 
             # direction for basis (use r_diff from the central step)
-            t_hat = r_diff / (norm(r_diff, axis=1, keepdims=True) + 1e-30)
+            t_hat = r_diff / (norm(r_diff, axis=1, keepdims=True) + 1e-32)
             e1, e2 = make_e1e2_from_t(t_hat)
 
             eps = perturb_ratio * norm(r_diff, axis=1)  # (n_rays,)

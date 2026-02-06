@@ -40,10 +40,70 @@ kb = 1.38065e-16  # Boltzmann constant, erg/K
 sfu2cgs = 1e-19  # SFU to CGS conversion
 
 # GRFF library path (assumed)
-GRFF_LIB = './GRFF/binaries/GRFF_DEM_Transfer.so'
+GRFF_LIB = '../GRFF/binaries/GRFF_DEM_Transfer.so'
 
 
-def SyntheticFF(fname_input, freq0, Nfreq, freq_log_step, fname_output):
+def _save_center_pixel_plots(Ne_LOS, Te_LOS, B_LOS, ds_LOS, N_pix, R_sun, fname_output):
+    """Plot Ne, Te, B, and ds along LOS for the center pixel (inspection)."""
+    i_c = N_pix // 2
+    j_c = N_pix // 2
+    R_sun_cm = R_sun
+    ne_c = Ne_LOS[i_c, j_c, :].copy()
+    te_c = Te_LOS[i_c, j_c, :].copy()
+    b_c = B_LOS[i_c, j_c, :].copy()
+    ds_c = ds_LOS[i_c, j_c, :].copy()
+    valid = np.isfinite(ne_c) & np.isfinite(te_c) & np.isfinite(b_c)
+    if not np.any(valid):
+        print("Center pixel has no valid LOS points; skipping inspection plot.")
+        return
+    ne_c = np.where(valid, ne_c, np.nan)
+    te_c = np.where(valid, te_c, np.nan)
+    b_c = np.where(valid, b_c, np.nan)
+    ds_c = np.where(valid, ds_c, np.nan)
+    N_z = len(ds_c)
+    ds_safe = np.where(np.isfinite(ds_c), ds_c, 0.0)
+    dist_cm = np.zeros(N_z, dtype=float)
+    dist_cm[0] = 0.0
+    if N_z > 1:
+        dist_cm[1:] = np.cumsum(ds_safe[:-1])
+    dist_Rsun = dist_cm / R_sun_cm
+
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    axes[0, 0].plot(dist_Rsun, ne_c, 'b-', linewidth=1.5)
+    axes[0, 0].set_xlabel('Distance along LOS (R_sun)')
+    axes[0, 0].set_ylabel('N_e (cm$^{-3}$)')
+    axes[0, 0].set_yscale('log')
+    axes[0, 0].set_title('Center pixel: N_e along LOS')
+    axes[0, 0].grid(True, alpha=0.3)
+
+    axes[0, 1].plot(dist_Rsun, te_c, 'r-', linewidth=1.5)
+    axes[0, 1].set_xlabel('Distance along LOS (R_sun)')
+    axes[0, 1].set_ylabel('T_e (K)')
+    axes[0, 1].set_yscale('log')
+    axes[0, 1].set_title('Center pixel: T_e along LOS')
+    axes[0, 1].grid(True, alpha=0.3)
+
+    axes[1, 0].plot(dist_Rsun, b_c, 'green', linewidth=1.5)
+    axes[1, 0].set_xlabel('Distance along LOS (R_sun)')
+    axes[1, 0].set_ylabel('|B| (G)')
+    axes[1, 0].set_yscale('log')
+    axes[1, 0].set_title('Center pixel: |B| along LOS')
+    axes[1, 0].grid(True, alpha=0.3)
+
+    axes[1, 1].plot(dist_Rsun, ds_c / R_sun_cm, 'k-', linewidth=1.5)
+    axes[1, 1].set_xlabel('Distance along LOS (R_sun)')
+    axes[1, 1].set_ylabel('ds (R_sun)')
+    axes[1, 1].set_title('Center pixel: segment length ds along LOS')
+    axes[1, 1].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plot_path = fname_output + '_center_pixel.png'
+    plt.savefig(plot_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Center-pixel inspection plot saved to {plot_path}")
+
+
+def SyntheticFF(fname_input, freq0, Nfreq, freq_log_step, fname_output, do_inspection_plot=False):
     """
     Compute synthetic free-free brightness temperature and V/I from LOS data using GRFF.
 
@@ -60,6 +120,8 @@ def SyntheticFF(fname_input, freq0, Nfreq, freq_log_step, fname_output):
     fname_output : str
         Base path for output files (no extension). Writes fname_output.npz,
         fname_output.png, fname_output_Tb_VI.png, fname_output_log.png.
+    do_inspection_plot : bool
+        If True, save center-pixel LOS sampling plot (fname_output_center_pixel.png).
 
     Returns
     -------
@@ -97,6 +159,9 @@ def SyntheticFF(fname_input, freq0, Nfreq, freq_log_step, fname_output):
 
     print(f"Image size: {N_pix}x{N_pix}, LOS points: {N_z}")
     print(f"Frequencies: {frequencies_Hz/1e6} MHz (Nf={Nf})")
+
+    if do_inspection_plot:
+        _save_center_pixel_plots(Ne_LOS, Te_LOS, B_LOS, ds_LOS, N_pix, R_sun, fname_output)
 
     for i in range(N_pix):
         if (i + 1) % 50 == 0:
@@ -257,5 +322,8 @@ if __name__ == '__main__':
                         help='Number of frequencies (default: 4)')
     parser.add_argument('--freq-log-step', '-s', type=float, default=0.1,
                         help='log10 step between frequencies (default: 0.1)')
+    parser.add_argument('--do-inspection-plot', action='store_true',
+                        help='Save center-pixel LOS sampling plot (Ne, Te, B, ds along LOS)')
     args = parser.parse_args()
-    SyntheticFF(args.input, args.freq0, args.Nfreq, args.freq_log_step, args.output)
+    SyntheticFF(args.input, args.freq0, args.Nfreq, args.freq_log_step, args.output,
+                do_inspection_plot=args.do_inspection_plot)
