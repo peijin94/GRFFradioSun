@@ -311,7 +311,8 @@ def run_ray_tracing_emission(model_path, N_pix=64, X_fov=1.44, freq_hz=75e6,
     Rparms = np.zeros(3, dtype='double')
     pixel_size_Rsun = (2 * X_fov) / N_pix
     pixel_size_cm = pixel_size_Rsun * R_sun_cm
-    Rparms[0] = pixel_size_cm * pixel_size_cm
+    pixel_area_cm2 = pixel_size_cm * pixel_size_cm
+    Rparms[0] = pixel_area_cm2
     Rparms[1] = freq0
     Rparms[2] = freq_log_step
 
@@ -357,7 +358,7 @@ def run_ray_tracing_emission(model_path, N_pix=64, X_fov=1.44, freq_hz=75e6,
             Parms[7, k] = 30
             Parms[8, k] = Parms[9, k] = Parms[10, k] = 0.0
             Parms[11, k] = Parms[12, k] = Parms[13, k] = 0.0
-            Parms[14, k] = S_valid[k] if s_input_on else 1.0  # S (cross-section) or 0
+            Parms[14, k] = S_valid[k]*pixel_area_cm2 if s_input_on else 0.0  # S (cross-section) or 0
         Lparms_local = Lparms.copy()
         Lparms_local[0] = N_valid
         dummy_T = np.array(0, dtype='double')
