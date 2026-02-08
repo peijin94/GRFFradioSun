@@ -155,6 +155,12 @@ def resample_MAS(model_path, N_pix, X_range, Y_range, N_z, dz0, variable_spacing
 
     z_coords = z_coords_Rsun * R_sun_m  # meters
 
+    if variable_spacing_z and dz0 > 1.0:
+        raise ValueError(
+            f"dz0={dz0:g} is extremely large in R_sun units. "
+            "Did you mean something like 7e-4 instead of 7e4?"
+        )
+
     if verbose:
         print(f"max(z_coords_Rsun) = {np.max(z_coords_Rsun):.6f} R_sun")
 
@@ -203,6 +209,9 @@ def resample_MAS(model_path, N_pix, X_range, Y_range, N_z, dz0, variable_spacing
 
     if verbose:
         print(f"\nSampling along LOS... Image size: {N_pix}x{N_pix}, LOS points: {N_z}")
+
+    sample_errors = 0
+    first_sample_error = None
 
     for i in range(N_pix):
         if verbose and (i + 1) % 50 == 0:
@@ -256,8 +265,24 @@ def resample_MAS(model_path, N_pix, X_range, Y_range, N_z, dz0, variable_spacing
                 Ne_LOS[i, j, ~valid_mask] = np.nan
                 Te_LOS[i, j, ~valid_mask] = np.nan
                 B_LOS[i, j, ~valid_mask] = np.nan
-            except Exception:
-                pass
+            except Exception as exc:
+                sample_errors += 1
+                if first_sample_error is None:
+                    first_sample_error = repr(exc)
+
+    finite_ne = int(np.isfinite(Ne_LOS).sum())
+    finite_te = int(np.isfinite(Te_LOS).sum())
+    finite_b = int(np.isfinite(B_LOS).sum())
+    if verbose and sample_errors:
+        print(
+            f"Sampling warnings: {sample_errors} LOS calls failed. "
+            f"First error: {first_sample_error}"
+        )
+    if (finite_ne == 0) and (finite_te == 0) and (finite_b == 0):
+        raise RuntimeError(
+            "All sampled LOS values are NaN. "
+            "Check --dz0 units (R_sun); common mistake is 7e4 vs 7e-4."
+        )
 
     if verbose:
         print("Sampling complete!")
@@ -326,7 +351,7 @@ def _save_resampling_plots(result, N_pix, x_range, y_range, R_sun_m, verbose):
 
     im2 = axes2[1].imshow(np.log10(Te_LOS[:, :, z_mid_idx]), origin='lower',
                          extent=[x_range[0], x_range[1], y_range[0], y_range[1]],
-                         aspect='equal', cmap='plasma',vmax=5.5)
+                         aspect='equal', cmap='plasma',vmax=5.5, vmin=4.4)
     axes2[1].set_xlabel('x (R_sun)')
     axes2[1].set_ylabel('y (R_sun)')
     axes2[1].set_title(f'T_e at z={z_coords[z_mid_idx]/R_sun_m:.2f} R_sun')

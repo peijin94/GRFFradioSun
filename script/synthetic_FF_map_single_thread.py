@@ -41,7 +41,7 @@ kb = 1.38065e-16  # Boltzmann constant, erg/K
 sfu2cgs = 1e-19  # SFU to CGS conversion
 
 # GRFF library path
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 GRFF_LIB = str(PROJECT_ROOT / "GRFF" / "binaries" / "GRFF_DEM_Transfer.so")
 
 
