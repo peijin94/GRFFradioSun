@@ -299,7 +299,7 @@ def run_ray_tracing_emission(model_path, N_pix=64, X_fov=1.44, freq_hz=75e6,
     x_flat = X_img.ravel()
     y_flat = Y_img.ravel()
     n_rays = len(x_flat)
-    z_start = np.full(n_rays, z_observer)
+    z_start = np.sqrt( np.abs((z_observer*2.0)**2 - x_flat**2 - y_flat**2))/2.0
     kvec_in_norm = np.tile([[0, 0, -1]], (n_rays, 1))
 
     if raytrace_device == 'cuda':

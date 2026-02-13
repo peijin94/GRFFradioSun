@@ -1,0 +1,3 @@
+# idx freq_hz npz_path png_path
+28 7.143625e+08 script/pub/mfs/raytrace_28_0714.363MHz.npz script/pub/mfs/Tb_map_28_0714.363MHz.png
+29 8.000000e+08 script/pub/mfs/raytrace_29_0800.000MHz.npz script/pub/mfs/Tb_map_29_0800.000MHz.png

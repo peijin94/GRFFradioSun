@@ -11,6 +11,8 @@ build/
 
 *.pdf
 
+*.csv
+
 # Jupyter
 .ipynb_checkpoints/
 
