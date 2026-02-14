@@ -39,7 +39,10 @@ emission_map.npz
 # GRFF binaries (if not tracked)
 # GRFF/binaries/*.so
 
+*.hdf
+*.h5
 
+*.fits
 *.png
 
 *.npz

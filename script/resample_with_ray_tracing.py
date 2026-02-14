@@ -627,7 +627,7 @@ def _save_emission_plot(result, N_pix, X_fov, R_sun_m, out_path, verbose, consid
     fig, ax = plt.subplots(figsize=(6, 4.8))
     im = ax.imshow(emission_map, origin='lower',
                    extent=[x_range[0], x_range[1], y_range[0], y_range[1]],
-                   aspect='equal', cmap='hot', interpolation='bilinear',
+                   aspect='equal', cmap='hinodexrt', interpolation='bilinear',
                    vmin=0, vmax=np.nanmax(emission_map)*1.1)
     ax.set_xlabel('x (R_sun)')
     ax.set_ylabel('y (R_sun)')
